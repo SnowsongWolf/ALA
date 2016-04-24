@@ -50,6 +50,32 @@ void AlaLedRgb::initPWM(int numLeds, byte *pins)
 	memset(leds, 0, 3*numLeds);
 }
 
+void AlaLedRgb::initBP(byte pinRed, byte pinGreen, byte pinBlue)
+{
+	byte *pins_ = (byte *)malloc(3);
+    pins_[0] = pinRed;
+    pins_[1] = pinGreen;
+    pins_[2] = pinBlue;
+    
+    initBP(1, pins_);
+}
+
+void AlaLedRgb::initBP(int numLeds, byte *pins)
+{
+	this->driver = ALA_BP;
+	this->numLeds = numLeds;
+	this->pins = pins;
+	
+	for (int x=0; x<3*numLeds ; x++)
+	{
+		pinMode(pins[x], OUTPUT);
+	}
+
+	// allocate and clear leds array
+	leds = (AlaColor *)malloc(3*numLeds);
+	memset(leds, 0, 3*numLeds);
+}
+
 void AlaLedRgb::initTLC5940(int numLeds, byte *pins)
 {
 	this->driver = ALA_TLC5940;
@@ -151,6 +177,8 @@ void AlaLedRgb::setAnimation(AlaSeq animSeq[])
 	this->animSeq = animSeq;
 
 	// initialize animSeqDuration and animSeqLen variables
+	currAnim = 0;
+	lastRefreshTime = 0;
     animSeqDuration = 0;
     for(animSeqLen=0; animSeq[animSeqLen].animation!=ALA_ENDSEQ; animSeqLen++)
     {
@@ -204,14 +232,18 @@ bool AlaLedRgb::runAnimation()
 
 		// use an 8 bit shift to divide by 256
 		
-		if(driver==ALA_PWM)
+		if((driver==ALA_PWM) || (driver==ALA_BP))
 		{
+			int offset = 0;
+			if (driver==ALA_BP)
+				offset = 255;
+			
 			for(int i=0; i<numLeds; i++)
 			{
 				int j = 3*i;
-				analogWrite(pins[j],   (leds[i].r*maxOut.r)>>8);
-				analogWrite(pins[j+1], (leds[i].g*maxOut.g)>>8);
-				analogWrite(pins[j+2], (leds[i].b*maxOut.b)>>8);
+				analogWrite(pins[j],   offset - (leds[i].r*maxOut.r)>>8);
+				analogWrite(pins[j+1], offset - (leds[i].g*maxOut.g)>>8);
+				analogWrite(pins[j+2], offset - (leds[i].b*maxOut.b)>>8);
 			}
 		}
 		else if(driver==ALA_TLC5940)
